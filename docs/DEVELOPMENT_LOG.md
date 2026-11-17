@@ -33,6 +33,30 @@
 
 ---
 
+## [2026-11-17] - Milestone 3: External AI Intelligence Skill Complete
+
+### Implemented
+1. **External Research Retrieval Tools (`tools/research/`)**:
+   - `fetch_sources`: Connects to arXiv and research feeds, parses Atom XML feeds, preserves author metadata and original permanent URLs, with deterministic fallback for offline sandbox modes.
+   - `extract_content`: Cleans, structures, and sanitizes untrusted external text. Disarms prompt injection vectors (`ignore previous instructions`, etc.) and strips HTML tags.
+   - `classify_research`: Evaluates publication types (`preprint`, `peer_reviewed_paper`, `announcement`, `experimental_result`, `opinion`), maps domain topics (`world_models`, `reasoning_agents`, `reinforcement_learning`), and computes relevance/importance scores.
+   - `save_knowledge`: Persists structured AI research intelligence records into the `external_ai_knowledge` SQLite table with URL uniqueness and publication date preservation.
+2. **Knowledge & Deduplication Tools (`tools/knowledge/`)**:
+   - `deduplicate`: Prevents redundant database entries using URL and title matching across in-batch and persistent storage.
+   - `search_knowledge`: Searches stored external research records by keywords, topics, and research types.
+3. **Skill Definition & Registry**:
+   - Created `skills/ai-intelligence/SKILL.md` strictly adhering to the 11-section specification.
+   - Added `config/source_registry.json` for verified external research sources.
+4. **End-to-End Skill Workflow in Orchestrator**:
+   - Implemented `execute_ai_intelligence_workflow`:
+     `fetch_sources` -> `extract_content` -> `classify_research` -> `deduplicate` -> `save_knowledge` -> formatted summary.
+   - Strictly conforms to Section 5 output contract (`sources_collected`, `research_topics`, `important_developments`, `knowledge_saved`, `collection_errors`).
+5. **Testing & Verification**:
+   - Added 8 new tests in `tests/test_ai_intelligence_tools.py` and `tests/test_ai_intelligence_workflow.py`.
+   - Full test suite: **62 passing tests** across 14 test modules with 85% total coverage.
+
+---
+
 ## [2026-11-17] - Milestone 2: Caspian Research Skill Complete
 
 ### Implemented
