@@ -11,6 +11,9 @@ from database.models import (
     is_source_url_stored,
     save_daily_briefing,
     get_latest_daily_briefing,
+    save_content_draft,
+    get_content_draft,
+    update_draft_approval,
 )
 
 __all__ = [
@@ -26,4 +29,7 @@ __all__ = [
     "is_source_url_stored",
     "save_daily_briefing",
     "get_latest_daily_briefing",
+    "save_content_draft",
+    "get_content_draft",
+    "update_draft_approval",
 ]

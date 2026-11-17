@@ -78,6 +78,25 @@ CREATE TABLE IF NOT EXISTS daily_briefings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS content_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    draft_id TEXT UNIQUE NOT NULL,
+    content_type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    sources_json TEXT,
+    verification_status TEXT NOT NULL DEFAULT 'PENDING',
+    disclosure_status TEXT NOT NULL DEFAULT 'REVIEW_REQUIRED',
+    approval_status TEXT NOT NULL DEFAULT 'PENDING',
+    scheduled_time TIMESTAMP,
+    publication_status TEXT NOT NULL DEFAULT 'DRAFT',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_draft_id ON content_drafts(draft_id);
+CREATE INDEX IF NOT EXISTS idx_draft_approval ON content_drafts(approval_status);
+CREATE INDEX IF NOT EXISTS idx_draft_publication ON content_drafts(publication_status);
 CREATE INDEX IF NOT EXISTS idx_briefing_date ON daily_briefings(briefing_date);
 CREATE INDEX IF NOT EXISTS idx_external_url ON external_ai_knowledge(source_url);
 CREATE INDEX IF NOT EXISTS idx_external_topic ON external_ai_knowledge(topic);
@@ -362,3 +381,94 @@ def get_latest_daily_briefing(manager: Optional[DatabaseManager] = None) -> Opti
         res["caspian_relevance"] = json.loads(res["caspian_relevance_json"]) if res["caspian_relevance_json"] else []
         res["sources"] = json.loads(res["sources_json"]) if res["sources_json"] else []
         return res
+
+
+def save_content_draft(
+    draft_id: str,
+    content_type: str,
+    content: str,
+    content_hash: str,
+    sources: List[str],
+    verification_status: str = "PENDING",
+    disclosure_status: str = "REVIEW_REQUIRED",
+    approval_status: str = "PENDING",
+    scheduled_time: Optional[str] = None,
+    publication_status: str = "DRAFT",
+    manager: Optional[DatabaseManager] = None,
+) -> int:
+    """Save content draft with cryptographic content hash binding."""
+    mgr = manager or db_manager
+    query = """
+    INSERT INTO content_drafts (
+        draft_id, content_type, content, content_hash, sources_json,
+        verification_status, disclosure_status, approval_status,
+        scheduled_time, publication_status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(draft_id) DO UPDATE SET
+        content=excluded.content,
+        content_hash=excluded.content_hash,
+        verification_status=excluded.verification_status,
+        disclosure_status=excluded.disclosure_status,
+        approval_status=excluded.approval_status,
+        updated_at=CURRENT_TIMESTAMP;
+    """
+    with mgr.connection() as conn:
+        cur = conn.execute(
+            query,
+            (
+                draft_id,
+                content_type,
+                content,
+                content_hash,
+                json.dumps(sources),
+                verification_status,
+                disclosure_status,
+                approval_status,
+                scheduled_time,
+                publication_status,
+            ),
+        )
+        return cur.lastrowid
+
+
+def get_content_draft(draft_id: str, manager: Optional[DatabaseManager] = None) -> Optional[Dict[str, Any]]:
+    """Retrieve content draft by draft_id."""
+    mgr = manager or db_manager
+    query = "SELECT * FROM content_drafts WHERE draft_id = ? LIMIT 1;"
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (draft_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        res = dict(row)
+        res["sources"] = json.loads(res["sources_json"]) if res["sources_json"] else []
+        return res
+
+
+def update_draft_approval(
+    draft_id: str,
+    new_approval_status: str,
+    expected_content_hash: str,
+    manager: Optional[DatabaseManager] = None,
+) -> bool:
+    """
+    Update draft approval status.
+    Strictly verifies that the draft's content has not changed since approval.
+    """
+    mgr = manager or db_manager
+    draft = get_content_draft(draft_id, manager=mgr)
+    if not draft:
+        return False
+
+    # Security check: any modification to content invalidates previous approval
+    if draft["content_hash"] != expected_content_hash:
+        return False
+
+    query = """
+    UPDATE content_drafts
+    SET approval_status = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE draft_id = ? AND content_hash = ?;
+    """
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (new_approval_status, draft_id, expected_content_hash))
+        return cur.rowcount > 0

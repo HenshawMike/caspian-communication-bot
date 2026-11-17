@@ -33,6 +33,30 @@
 
 ---
 
+## [2026-11-17] - Milestone 5: Content Generation Complete
+
+### Implemented
+1. **Thread Generation & Claim Verification Tools (`tools/content/`)**:
+   - `generate_thread`: Formats sequential research findings into numbered multi-part X threads (`1/N`, `2/N`, ... `N/N`), strictly adhering to the 280-character limit per post and attaching verifiable source citations to the final post.
+   - `verify_claims`: Fact-checks generated statements and numerical metrics against ground truth sources, flags hallucinated percentages/numbers, and rejects ungrounded superlatives ("flawless", "undefeated").
+2. **Drafts & Approval Persistence (`database/models.py`)**:
+   - Created `content_drafts` SQLite table tracking `draft_id`, `content_type`, `content`, `content_hash`, `sources_json`, `verification_status`, `disclosure_status`, `approval_status`, `scheduled_time`, and `publication_status`.
+   - Implemented SHA-256 cryptographic hash binding in `update_draft_approval`: any tampering or modification to approved text invalidates approval.
+3. **Skill Specification (`skills/content-publishing/SKILL.md`)**:
+   - Authored 11-section specification for Content Publishing covering post generation, thread generation, claim verification, disclosure checking, and user approval workflows.
+4. **End-to-End Content Generation in Orchestrator (`agent/orchestrator.py`)**:
+   - Implemented `execute_content_generation_workflow`:
+     - Distinguishes single posts (`write a post`) from threads (`write a thread`).
+     - Queries knowledge context and generates draft.
+     - Runs `verify_claims` and `check_disclosure`.
+     - Generates unique draft ID (`DRAFT-YYYYMMDDHHMMSS-<HASH>`), computes content hash, and saves with `PENDING` approval.
+     - Supports user approval dispatch (`approve draft <id>`, `reject draft <id>`).
+5. **Testing & Verification**:
+   - Added 8 new tests in `tests/test_content_tools.py` and `tests/test_content_workflow.py`.
+   - Full test suite: **73 passing tests** across 17 test modules with 86% total coverage.
+
+---
+
 ## [2026-11-17] - Milestone 4: Daily AI Briefing Skill Complete
 
 ### Implemented

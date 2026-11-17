@@ -57,7 +57,10 @@
         "write a post",
         "generate a thread",
         "schedule posts",
-        "publish content"
+        "approve draft",
+        "reject draft",
+        "approve content",
+        "reject content"
       ],
       "required_permissions": [
         "content_generate",
