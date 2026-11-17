@@ -50,6 +50,26 @@ CREATE TABLE IF NOT EXISTS caspian_knowledge (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS external_ai_knowledge (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    source_url TEXT UNIQUE NOT NULL,
+    source_name TEXT NOT NULL,
+    publication_date TEXT,
+    research_type TEXT NOT NULL,
+    topic TEXT NOT NULL,
+    summary TEXT,
+    central_contribution TEXT,
+    findings TEXT,
+    relevance_score REAL DEFAULT 0.5,
+    importance_score REAL DEFAULT 0.5,
+    raw_content TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_url ON external_ai_knowledge(source_url);
+CREATE INDEX IF NOT EXISTS idx_external_topic ON external_ai_knowledge(topic);
+CREATE INDEX IF NOT EXISTS idx_external_type ON external_ai_knowledge(research_type);
 CREATE INDEX IF NOT EXISTS idx_caspian_experiment ON caspian_knowledge(experiment_id);
 CREATE INDEX IF NOT EXISTS idx_caspian_commit ON caspian_knowledge(commit_hash);
 CREATE INDEX IF NOT EXISTS idx_caspian_disclosure ON caspian_knowledge(disclosure_status);
@@ -190,3 +210,94 @@ def retrieve_caspian_context(
     with mgr.connection() as conn:
         cur = conn.execute(sql, tuple(params))
         return [dict(row) for row in cur.fetchall()]
+
+
+def save_external_knowledge(
+    title: str,
+    source_url: str,
+    source_name: str,
+    publication_date: Optional[str] = None,
+    research_type: str = "preprint",
+    topic: str = "general_ai",
+    summary: Optional[str] = None,
+    central_contribution: Optional[str] = None,
+    findings: Optional[str] = None,
+    relevance_score: float = 0.5,
+    importance_score: float = 0.5,
+    raw_content: Optional[str] = None,
+    manager: Optional[DatabaseManager] = None,
+) -> int:
+    """Store structured external AI intelligence record."""
+    mgr = manager or db_manager
+    query = """
+    INSERT INTO external_ai_knowledge (
+        title, source_url, source_name, publication_date, research_type,
+        topic, summary, central_contribution, findings, relevance_score,
+        importance_score, raw_content
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(source_url) DO UPDATE SET
+        summary=excluded.summary,
+        relevance_score=excluded.relevance_score,
+        importance_score=excluded.importance_score;
+    """
+    with mgr.connection() as conn:
+        cursor = conn.execute(
+            query,
+            (
+                title,
+                source_url,
+                source_name,
+                publication_date,
+                research_type,
+                topic,
+                summary,
+                central_contribution,
+                findings,
+                relevance_score,
+                importance_score,
+                raw_content,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def search_external_knowledge(
+    query_text: Optional[str] = None,
+    topic: Optional[str] = None,
+    research_type: Optional[str] = None,
+    limit: int = 10,
+    manager: Optional[DatabaseManager] = None,
+) -> List[Dict[str, Any]]:
+    """Search stored external AI intelligence."""
+    mgr = manager or db_manager
+    sql = "SELECT * FROM external_ai_knowledge WHERE 1=1"
+    params: List[Any] = []
+
+    if topic:
+        sql += " AND topic LIKE ?"
+        params.append(f"%{topic}%")
+
+    if research_type:
+        sql += " AND research_type = ?"
+        params.append(research_type)
+
+    if query_text:
+        sql += " AND (title LIKE ? OR summary LIKE ? OR central_contribution LIKE ?)"
+        term = f"%{query_text}%"
+        params.extend([term, term, term])
+
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+
+    with mgr.connection() as conn:
+        cur = conn.execute(sql, tuple(params))
+        return [dict(row) for row in cur.fetchall()]
+
+
+def is_source_url_stored(url: str, manager: Optional[DatabaseManager] = None) -> bool:
+    """Check if a source URL is already stored."""
+    mgr = manager or db_manager
+    query = "SELECT 1 FROM external_ai_knowledge WHERE source_url = ? LIMIT 1;"
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (url.strip(),))
+        return cur.fetchone() is not None

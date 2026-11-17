@@ -45,6 +45,7 @@ def retrieve_context(
     query: Optional[str] = None,
     disclosure_filter: Optional[str] = None,
     limit: int = 5,
+    manager: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Retrieve historical research context from database."""
     try:
@@ -52,6 +53,7 @@ def retrieve_context(
             query_text=query,
             disclosure_filter=disclosure_filter,
             limit=limit,
+            manager=manager,
         )
         return {
             "success": True,

@@ -94,6 +94,17 @@ def _parse_report_content(raw_text: str, file_path: str) -> ResearchReport:
     )
 
 
+def _validate_reports_dir(repo_path: Optional[str]) -> Path:
+    """Validate directory for report extraction."""
+    target_path = Path(repo_path) if repo_path else (settings.caspian_repo_path or settings.base_dir)
+    target_path = target_path.resolve()
+
+    if not target_path.exists() or not target_path.is_dir():
+        raise ValueError(f"Reports directory does not exist or is not a directory: {target_path}")
+
+    return target_path
+
+
 @register_tool(
     name="extract_reports",
     description="Extract research findings, limitations, and disclosure classification from research files (read-only).",
@@ -107,7 +118,7 @@ def extract_reports(
 ) -> Dict[str, Any]:
     """Extract and parse research documents from repository."""
     try:
-        repo_dir = _validate_repo_path(repository_path)
+        repo_dir = _validate_reports_dir(repository_path)
     except Exception as e:
         return {
             "success": False,

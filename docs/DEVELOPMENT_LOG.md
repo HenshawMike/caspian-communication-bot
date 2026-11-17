@@ -33,6 +33,27 @@
 
 ---
 
+## [2026-11-17] - Milestone 2: Caspian Research Skill Complete
+
+### Implemented
+1. **Read-Only Git Repository Tools (`tools/github/`)**:
+   - `scan_repository`: Read-only commit scanner identifying latest commit, new commits since a given SHA, and changed files.
+   - `get_commit_details`: Read-only commit inspector extracting author, date, message, changed files, and stat summaries with strict SHA sanitization.
+   - `extract_reports`: Document parser scanning research notes (`.md`, `.txt`, `.json`, `.tex`) for titles, experiment IDs, hypotheses, findings, limitations, and embedded disclosure tags (`<!-- DISCLOSURE: ... -->`).
+2. **Context & Knowledge Tools (`tools/knowledge/`)**:
+   - `retrieve_context`: Queries stored Project Caspian experiment context from the `caspian_knowledge` SQLite table without fabrication.
+3. **Disclosure Policy & Content Tools (`tools/content/`)**:
+   - `check_disclosure`: Validates content against Caspian public disclosure rules, scrubs secrets, and flags internal patterns (private IPs, credentials, internal domains, confidential tags). Defaults any unclassified items to `REVIEW_REQUIRED`.
+   - `generate_post`: Generates professional, balanced research post drafts (max 280 chars) referencing experiment IDs and commit SHAs without exaggeration.
+4. **Caspian Research Orchestration Workflow**:
+   - Integrated full end-to-end execution sequence in `Orchestrator`: scans repository -> retrieves commit details -> extracts reports -> queries context -> evaluates disclosure -> generates public drafts -> persists records to database.
+   - Strictly conforms to Section 5 output contract (`research_updates`, `important_findings`, `limitations`, `public_opportunities`, `restricted_items`, `source_references`).
+5. **Testing & Verification**:
+   - 11 new tests in `tests/test_caspian_tools.py` and `tests/test_caspian_research_workflow.py`.
+   - Full test suite: **54 passing tests** across 12 test modules with 84% total coverage.
+
+---
+
 ## [2026-11-17] - Milestone 1: Telegram Interface Complete
 
 ### Implemented

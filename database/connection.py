@@ -31,7 +31,15 @@ class DatabaseManager:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA foreign_keys=ON;")
         conn.execute("PRAGMA busy_timeout=5000;")
+        
+        # Ensure base tables exist
+        self._ensure_schema(conn)
         return conn
+
+    def _ensure_schema(self, conn: sqlite3.Connection) -> None:
+        """Auto-create tables on connection if not initialized."""
+        from database.models import SCHEMA_SQL
+        conn.executescript(SCHEMA_SQL)
 
     @contextmanager
     def connection(self):

@@ -51,13 +51,23 @@ class SkillRouter:
     def _match_triggers(self, text: str) -> Optional[str]:
         """Check text against known triggers from the skill registry."""
         skills = self.loader.get_all_skills_metadata()
+        text_words = set(re.findall(r"\b[a-zA-Z0-9_-]+\b", text))
+
+        # 1. First pass: exact contiguous phrase match
         for skill in skills:
             for trigger in skill.triggers:
                 trigger_clean = trigger.strip().lower()
-                # Whole phrase match or word boundary match
                 pattern = r"\b" + re.escape(trigger_clean) + r"\b"
                 if re.search(pattern, text):
                     return skill.id
+
+        # 2. Second pass: all trigger words present in user message
+        for skill in skills:
+            for trigger in skill.triggers:
+                trigger_words = set(re.findall(r"\b[a-zA-Z0-9_-]+\b", trigger.strip().lower()))
+                if trigger_words and trigger_words.issubset(text_words):
+                    return skill.id
+
         return None
 
     def _route_with_llm(self, message: str) -> RouteDecision:

@@ -1,0 +1,29 @@
+{
+  "sources": [
+    {
+      "id": "arxiv_ai",
+      "name": "arXiv Computer Science / AI",
+      "type": "api",
+      "base_url": "http://export.arxiv.org/api/query",
+      "categories": ["cs.AI", "cs.LG", "cs.RO", "cs.CL"]
+    },
+    {
+      "id": "deepmind_research",
+      "name": "Google DeepMind Research",
+      "type": "feed",
+      "base_url": "https://deepmind.google/research/"
+    },
+    {
+      "id": "anthropic_research",
+      "name": "Anthropic Research",
+      "type": "feed",
+      "base_url": "https://www.anthropic.com/research"
+    },
+    {
+      "id": "openai_research",
+      "name": "OpenAI Research",
+      "type": "feed",
+      "base_url": "https://openai.com/research"
+    }
+  ]
+}

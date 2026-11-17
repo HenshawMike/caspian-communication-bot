@@ -6,6 +6,9 @@ from database.models import (
     get_audit_logs,
     save_caspian_research,
     retrieve_caspian_context,
+    save_external_knowledge,
+    search_external_knowledge,
+    is_source_url_stored,
 )
 
 __all__ = [
@@ -16,4 +19,7 @@ __all__ = [
     "get_audit_logs",
     "save_caspian_research",
     "retrieve_caspian_context",
+    "save_external_knowledge",
+    "search_external_knowledge",
+    "is_source_url_stored",
 ]
