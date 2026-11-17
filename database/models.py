@@ -94,6 +94,33 @@ CREATE TABLE IF NOT EXISTS content_drafts (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS publication_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    draft_id TEXT NOT NULL,
+    platform TEXT NOT NULL DEFAULT 'x',
+    x_post_id TEXT,
+    content TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error_message TEXT,
+    published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(platform, content_hash)
+);
+
+CREATE TABLE IF NOT EXISTS publishing_schedules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schedule_name TEXT UNIQUE NOT NULL,
+    cadence TEXT NOT NULL,
+    preferred_times_json TEXT NOT NULL,
+    is_paused BOOLEAN NOT NULL DEFAULT 0,
+    last_run_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pub_draft ON publication_history(draft_id);
+CREATE INDEX IF NOT EXISTS idx_pub_hash ON publication_history(content_hash);
+CREATE INDEX IF NOT EXISTS idx_sched_name ON publishing_schedules(schedule_name);
 CREATE INDEX IF NOT EXISTS idx_draft_id ON content_drafts(draft_id);
 CREATE INDEX IF NOT EXISTS idx_draft_approval ON content_drafts(approval_status);
 CREATE INDEX IF NOT EXISTS idx_draft_publication ON content_drafts(publication_status);
@@ -472,3 +499,145 @@ def update_draft_approval(
     with mgr.connection() as conn:
         cur = conn.execute(query, (new_approval_status, draft_id, expected_content_hash))
         return cur.rowcount > 0
+
+
+def record_publication(
+    draft_id: str,
+    platform: str,
+    x_post_id: Optional[str],
+    content: str,
+    content_hash: str,
+    status: str,
+    error_message: Optional[str] = None,
+    manager: Optional[DatabaseManager] = None,
+) -> int:
+    """Record a publication attempt to prevent double publishing."""
+    mgr = manager or db_manager
+    query = """
+    INSERT INTO publication_history (
+        draft_id, platform, x_post_id, content, content_hash, status, error_message
+    ) VALUES (?, ?, ?, ?, ?, ?, ?);
+    """
+    with mgr.connection() as conn:
+        cur = conn.execute(
+            query,
+            (draft_id, platform, x_post_id, content, content_hash, status, error_message),
+        )
+        # Update content_drafts publication_status
+        if status == "SUCCESS":
+            conn.execute(
+                "UPDATE content_drafts SET publication_status = 'PUBLISHED', updated_at = CURRENT_TIMESTAMP WHERE draft_id = ?;",
+                (draft_id,),
+            )
+        return cur.lastrowid
+
+
+def is_content_already_published(content_hash: str, platform: str = "x", manager: Optional[DatabaseManager] = None) -> bool:
+    """Check if content hash was already successfully published on platform."""
+    mgr = manager or db_manager
+    query = "SELECT 1 FROM publication_history WHERE platform = ? AND content_hash = ? AND status = 'SUCCESS' LIMIT 1;"
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (platform, content_hash))
+        return cur.fetchone() is not None
+
+
+def get_publication_history(limit: int = 50, manager: Optional[DatabaseManager] = None) -> List[Dict[str, Any]]:
+    """Retrieve publication records."""
+    mgr = manager or db_manager
+    query = "SELECT * FROM publication_history ORDER BY id DESC LIMIT ?;"
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (limit,))
+        return [dict(row) for row in cur.fetchall()]
+
+
+def upsert_publishing_schedule(
+    schedule_name: str,
+    cadence: str,
+    preferred_times: List[str],
+    is_paused: bool = False,
+    manager: Optional[DatabaseManager] = None,
+) -> int:
+    """Save or update a publishing schedule."""
+    mgr = manager or db_manager
+    query = """
+    INSERT INTO publishing_schedules (schedule_name, cadence, preferred_times_json, is_paused)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(schedule_name) DO UPDATE SET
+        cadence=excluded.cadence,
+        preferred_times_json=excluded.preferred_times_json,
+        is_paused=excluded.is_paused,
+        updated_at=CURRENT_TIMESTAMP;
+    """
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (schedule_name, cadence, json.dumps(preferred_times), 1 if is_paused else 0))
+        return cur.lastrowid
+
+
+def get_publishing_schedule(schedule_name: str = "default", manager: Optional[DatabaseManager] = None) -> Optional[Dict[str, Any]]:
+    """Retrieve schedule by name."""
+    mgr = manager or db_manager
+    query = "SELECT * FROM publishing_schedules WHERE schedule_name = ? LIMIT 1;"
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (schedule_name,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        res = dict(row)
+        res["preferred_times"] = json.loads(res["preferred_times_json"])
+        res["is_paused"] = bool(res["is_paused"])
+        return res
+
+
+def set_schedule_paused(schedule_name: str, paused: bool, manager: Optional[DatabaseManager] = None) -> bool:
+    """Pause or resume a publishing schedule."""
+    mgr = manager or db_manager
+    query = "UPDATE publishing_schedules SET is_paused = ?, updated_at = CURRENT_TIMESTAMP WHERE schedule_name = ?;"
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (1 if paused else 0, schedule_name))
+        return cur.rowcount > 0
+
+
+def get_pending_approved_drafts(limit: int = 10, manager: Optional[DatabaseManager] = None) -> List[Dict[str, Any]]:
+    """Retrieve approved drafts ready for publication."""
+    mgr = manager or db_manager
+    query = """
+    SELECT * FROM content_drafts
+    WHERE approval_status = 'APPROVED'
+      AND verification_status = 'VERIFIED'
+      AND disclosure_status = 'PUBLIC'
+      AND publication_status IN ('QUEUED', 'DRAFT')
+    ORDER BY id ASC LIMIT ?;
+    """
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (limit,))
+        results = []
+        for row in cur.fetchall():
+            d = dict(row)
+            d["sources"] = json.loads(d["sources_json"]) if d["sources_json"] else []
+            results.append(d)
+        return results
+
+
+def set_system_setting(key: str, value: str, description: Optional[str] = None, manager: Optional[DatabaseManager] = None) -> None:
+    """Upsert a key/value setting into system_settings."""
+    mgr = manager or db_manager
+    query = """
+    INSERT INTO system_settings (key, value, description, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(key) DO UPDATE SET
+        value=excluded.value,
+        description=COALESCE(excluded.description, system_settings.description),
+        updated_at=CURRENT_TIMESTAMP;
+    """
+    with mgr.connection() as conn:
+        conn.execute(query, (key, value, description))
+
+
+def get_system_setting(key: str, manager: Optional[DatabaseManager] = None) -> Optional[str]:
+    """Retrieve setting value by key."""
+    mgr = manager or db_manager
+    query = "SELECT value FROM system_settings WHERE key = ? LIMIT 1;"
+    with mgr.connection() as conn:
+        cur = conn.execute(query, (key,))
+        row = cur.fetchone()
+        return row[0] if row else None

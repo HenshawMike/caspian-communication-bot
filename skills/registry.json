@@ -57,14 +57,44 @@
         "write a post",
         "generate a thread",
         "schedule posts",
+        "publish content",
         "approve draft",
         "reject draft",
         "approve content",
-        "reject content"
+        "publish draft",
+        "schedule draft",
+        "queue draft",
+        "pause schedule",
+        "resume schedule",
+        "schedule status",
+        "execute schedule",
+        "run schedule",
+        "set schedule"
       ],
       "required_permissions": [
         "content_generate",
         "content_publish"
+      ]
+    },
+    {
+      "id": "document_generation",
+      "name": "Document Generation",
+      "path": "skills/document-generation/SKILL.md",
+      "description": "Compiles structured research reports, daily briefing summaries, and technical documentation into professional monochrome PDF and DOCX files.",
+      "triggers": [
+        "generate document",
+        "create document",
+        "export pdf",
+        "export docx",
+        "save as pdf",
+        "save as docx",
+        "export briefing",
+        "create research report",
+        "create report"
+      ],
+      "required_permissions": [
+        "content_generate",
+        "knowledge_read"
       ]
     }
   ]

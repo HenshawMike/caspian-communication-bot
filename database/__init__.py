@@ -14,6 +14,13 @@ from database.models import (
     save_content_draft,
     get_content_draft,
     update_draft_approval,
+    record_publication,
+    is_content_already_published,
+    get_publication_history,
+    upsert_publishing_schedule,
+    get_publishing_schedule,
+    set_schedule_paused,
+    get_pending_approved_drafts,
 )
 
 __all__ = [
@@ -32,4 +39,11 @@ __all__ = [
     "save_content_draft",
     "get_content_draft",
     "update_draft_approval",
+    "record_publication",
+    "is_content_already_published",
+    "get_publication_history",
+    "upsert_publishing_schedule",
+    "get_publishing_schedule",
+    "set_schedule_paused",
+    "get_pending_approved_drafts",
 ]

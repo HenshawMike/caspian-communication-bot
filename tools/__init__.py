@@ -8,5 +8,8 @@ import tools.github
 import tools.knowledge
 import tools.content
 import tools.research
+import tools.publishing
+import tools.scheduling
+import tools.documents
 
-__all__ = ["system", "github", "knowledge", "content", "research"]
+__all__ = ["system", "github", "knowledge", "content", "research", "publishing", "scheduling", "documents"]

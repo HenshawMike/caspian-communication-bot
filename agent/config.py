@@ -39,10 +39,18 @@ class Settings:
     telegram_bot_token: Optional[str] = None
     telegram_authorized_user_id: Optional[str] = None
     
+    # X (Twitter) API
+    x_api_key: Optional[str] = None
+    x_api_secret: Optional[str] = None
+    x_access_token: Optional[str] = None
+    x_access_token_secret: Optional[str] = None
+    x_dry_run_mode: bool = True
+
     # Paths & Repositories
     caspian_repo_path: Optional[Path] = None
     database_path: str = "caspian_agent.db"
     skills_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent.parent / "skills")
+    documents_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent.parent / "documents")
     
     # Execution & Security Limits
     max_tool_calls_per_request: int = 10
@@ -60,6 +68,12 @@ class Settings:
         self.telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN", self.telegram_bot_token)
         self.telegram_authorized_user_id = os.getenv("TELEGRAM_AUTHORIZED_USER_ID", self.telegram_authorized_user_id)
         
+        self.x_api_key = os.getenv("X_API_KEY", self.x_api_key)
+        self.x_api_secret = os.getenv("X_API_SECRET", self.x_api_secret)
+        self.x_access_token = os.getenv("X_ACCESS_TOKEN", self.x_access_token)
+        self.x_access_token_secret = os.getenv("X_ACCESS_TOKEN_SECRET", self.x_access_token_secret)
+        self.x_dry_run_mode = os.getenv("X_DRY_RUN_MODE", "true").lower() in ("true", "1", "yes")
+
         repo_env = os.getenv("CASPIAN_REPO_PATH")
         if repo_env:
             self.caspian_repo_path = Path(repo_env)
@@ -80,6 +94,11 @@ class Settings:
         if not p.is_absolute():
             return self.base_dir / p
         return p
+
+    def get_documents_dir(self) -> Path:
+        """Resolve generated documents directory and ensure it exists."""
+        self.documents_dir.mkdir(parents=True, exist_ok=True)
+        return self.documents_dir
 
     def __repr__(self) -> str:
         """Safe representation masking sensitive credentials."""

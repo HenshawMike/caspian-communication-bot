@@ -12,13 +12,17 @@ from agent.llm import MockLLMClient
 
 
 @pytest.fixture
-def temp_db():
+def temp_db(monkeypatch):
     """Create a temporary SQLite database for test isolation."""
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)
 
     mgr = DatabaseManager(db_path=db_path)
     initialize_database(mgr)
+    import database.connection
+    import database.models
+    monkeypatch.setattr(database.connection, "db_manager", mgr)
+    monkeypatch.setattr(database.models, "db_manager", mgr)
     yield mgr
 
     # Cleanup

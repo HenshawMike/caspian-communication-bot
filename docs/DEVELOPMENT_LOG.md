@@ -33,6 +33,76 @@
 
 ---
 
+## [2026-11-17] - Milestone 8: Cloud Deployment & Background Operations Complete
+
+### Implemented
+1. **Containerization & Deployment Architecture**:
+   - `Dockerfile`: Multi-stage, secure non-root `caspian` user container based on `python:3.12-slim`, preconfigured with system dependencies and runtime directories (`/app/data`, `/app/documents`, `/app/logs`).
+   - `docker-compose.yml`: Production service configuration with persistent host volume mounts for SQLite databases, exported documents, audit logs, environment injection from `.env`, and `restart: unless-stopped` recovery policy.
+   - `.dockerignore`: Safe ignore rules excluding virtual environments, local database cache/locks, and environment secrets.
+2. **Continuous Background Polling & Scheduling Engine (`agent/background_runner.py`)**:
+   - Automated recurring job execution independent of local machine uptime:
+     - Automatically verifies and releases scheduled posts from the queue to X (`execute_schedule`).
+     - Triggers automated daily AI intelligence sweep at configured UTC hour without duplication (`check_and_generate_daily_briefing`).
+     - Writes regular health heartbeats to database `system_settings` and `data/health.json`.
+3. **Health Monitoring & Automated Recovery**:
+   - Container healthcheck script (`scripts/healthcheck.py`): Pings SQLite database responsiveness and checks background worker heartbeat freshness.
+   - Signal handling in `main.py`: Graceful shutdown hooks on `SIGINT` and `SIGTERM` ensuring WAL checkpointing and clean resource release.
+   - Comprehensive documentation in `docs/DEPLOYMENT_AND_RECOVERY.md`.
+4. **Testing & Verification**:
+   - 6 new tests in `tests/test_background_runner.py` and `tests/test_healthcheck.py`.
+   - Full test suite: **97 passing tests** across 24 test modules with **88% total coverage**.
+
+---
+
+## [2026-11-17] - Milestone 7: Document Generation Complete
+
+### Implemented
+1. **Document Infrastructure Tools (`tools/documents/`)**:
+   - `create_document`: Builds canonical, validated document structure (`title`, `subtitle`, `document_type`, `sections`, `tables`, `callouts`, `metadata`, `sources`), preserving strict separation of content and presentation.
+   - `format_document`: Enforces the Section 7 monochrome visual design system:
+     - Strict palette: White (`#FFFFFF`), Black (`#111111`), Grey (`#666666`, `#888888`), Light grey borders/dividers (`#D9D9D9`), Secondary surfaces (`#F4F4F4`), Dark surfaces (`#181818`).
+     - Rejects colourful accents, gradients, and decorative styling.
+     - Styles hierarchy: titles, section headings, body paragraphs, bullet lists, callout boxes, and structured tables.
+   - `export_pdf`: Compiles formatted documents into publication-ready PDF files via ReportLab with dynamic two-pass header/footer pagination (`NumberedCanvas`), 0.75-inch margins, and styled tables.
+   - `export_docx`: Compiles formatted documents into Microsoft Word (`.docx`) files via `python-docx` with XML cell shading (`#F4F4F4`), custom borders (`#D9D9D9`), running headers/footers, and clean typography.
+2. **Skill Definition (`skills/document-generation/SKILL.md`) & Registry Integration**:
+   - Registered `document_generation` skill adhering to the mandatory 11-section format.
+   - Configured triggers (`generate document`, `create document`, `export pdf`, `export docx`, `save as pdf`, `export briefing`, `create research report`).
+3. **End-to-End Orchestrator Integration (`agent/orchestrator.py`)**:
+   - Added `execute_document_generation_workflow`:
+     - Parses target formats (PDF, DOCX, or both).
+     - Gathers content from stored research knowledge or exports daily AI briefings.
+     - Creates canonical document -> applies monochrome design system -> exports to requested formats -> delivers summary with file paths and sizes.
+4. **Testing & Verification**:
+   - 6 new unit and integration tests in `tests/test_document_tools.py` and `tests/test_document_workflow.py`.
+   - Full test suite: **91 passing tests** across 22 test modules with **89% total coverage** (100% on `format_document` and `export_docx`, 97% on `export_pdf`).
+
+---
+
+## [2026-11-17] - Milestone 6: Publishing & Scheduling Complete
+
+### Implemented
+1. **X (Twitter) Publishing Tools (`tools/publishing/`)**:
+   - `publish_x`: Authoritative publishing tool with strict double-publishing prevention via database-backed content hash and draft ID checks, approval status verification, claim verification and disclosure status validation, content tamper-detection, and safe dry-run simulation mode.
+   - `queue_post`: Schedules approved drafts for subsequent automated publication according to cadence rules.
+   - `publication_history`: Queries historical publications with filtering by platform and post status.
+2. **Scheduling Engine Tools (`tools/scheduling/`)**:
+   - `create_schedule`: Establishes recurring publishing cadences (`3_per_week`, `1_per_day`, `3_per_day`, `custom`) and preferred execution time windows.
+   - `manage_schedule`: Controls execution state (`pause`, `resume`, `status`), preventing unauthorized publishing when suspended.
+   - `execute_schedule`: Automated job runner that inspects schedule state, retrieves oldest queued approved drafts, executes verified publishing to X, and records publication history.
+3. **Database Schema Enhancements (`database/models.py`)**:
+   - `publication_history` table: Unique constraint on `(platform, content_hash)` and `(platform, draft_id)`.
+   - `publishing_schedules` table: Cadence, preferred times JSON, and `is_paused` state flag.
+4. **End-to-End Orchestrator Integration (`agent/orchestrator.py`)**:
+   - Natural language commands: `publish draft <id>`, `queue draft <id>`, `pause schedule`, `resume schedule`, `execute schedule`.
+   - Strict approval verification before publication, with immediate rejection if unapproved or if content was modified.
+5. **Testing & Verification**:
+   - Added 12 new tests in `tests/test_publishing_tools.py`, `tests/test_scheduling_tools.py`, and `tests/test_publishing_workflow.py`.
+   - Full test suite: **85 passing tests** across 20 test modules with 87% total coverage.
+
+---
+
 ## [2026-11-17] - Milestone 5: Content Generation Complete
 
 ### Implemented
