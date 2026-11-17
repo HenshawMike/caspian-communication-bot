@@ -37,6 +37,22 @@ CREATE TABLE IF NOT EXISTS system_settings (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS caspian_knowledge (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    experiment_id TEXT,
+    commit_hash TEXT,
+    findings TEXT,
+    limitations TEXT,
+    disclosure_status TEXT NOT NULL DEFAULT 'REVIEW_REQUIRED',
+    raw_content TEXT,
+    source_file TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_caspian_experiment ON caspian_knowledge(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_caspian_commit ON caspian_knowledge(commit_hash);
+CREATE INDEX IF NOT EXISTS idx_caspian_disclosure ON caspian_knowledge(disclosure_status);
 CREATE INDEX IF NOT EXISTS idx_audit_tool_name ON audit_logs(tool_name);
 CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at);
 """
@@ -109,4 +125,68 @@ def get_audit_logs(
                 "SELECT * FROM audit_logs ORDER BY id DESC LIMIT ?",
                 (limit,),
             )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def save_caspian_research(
+    title: str,
+    experiment_id: Optional[str] = None,
+    commit_hash: Optional[str] = None,
+    findings: Optional[str] = None,
+    limitations: Optional[str] = None,
+    disclosure_status: str = "REVIEW_REQUIRED",
+    raw_content: Optional[str] = None,
+    source_file: Optional[str] = None,
+    manager: Optional[DatabaseManager] = None,
+) -> int:
+    """Store structured Caspian research context."""
+    mgr = manager or db_manager
+    query = """
+    INSERT INTO caspian_knowledge (
+        title, experiment_id, commit_hash, findings, limitations,
+        disclosure_status, raw_content, source_file
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+    """
+    with mgr.connection() as conn:
+        cursor = conn.execute(
+            query,
+            (
+                title,
+                experiment_id,
+                commit_hash,
+                findings,
+                limitations,
+                disclosure_status,
+                raw_content,
+                source_file,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def retrieve_caspian_context(
+    query_text: Optional[str] = None,
+    disclosure_filter: Optional[str] = None,
+    limit: int = 10,
+    manager: Optional[DatabaseManager] = None,
+) -> List[Dict[str, Any]]:
+    """Query stored Caspian research history."""
+    mgr = manager or db_manager
+    sql = "SELECT * FROM caspian_knowledge WHERE 1=1"
+    params: List[Any] = []
+
+    if disclosure_filter:
+        sql += " AND disclosure_status = ?"
+        params.append(disclosure_filter)
+
+    if query_text:
+        sql += " AND (title LIKE ? OR findings LIKE ? OR raw_content LIKE ?)"
+        term = f"%{query_text}%"
+        params.extend([term, term, term])
+
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+
+    with mgr.connection() as conn:
+        cur = conn.execute(sql, tuple(params))
         return [dict(row) for row in cur.fetchall()]

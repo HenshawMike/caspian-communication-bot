@@ -30,3 +30,24 @@
    - Orchestrator connecting user message intake, routing, skill loading, permission setup, and tool execution.
 9. **Test Suite (`tests/`)**:
    - 34 passing tests across 10 test modules with 84% test coverage.
+
+---
+
+## [2026-11-17] - Milestone 1: Telegram Interface Complete
+
+### Implemented
+1. **Telegram Bot Package (`telegram_bot/`)**:
+   - Created dedicated `telegram_bot` package (`bot.py`, `handlers.py`, `keyboards.py`) avoiding module shadowing of third-party `python-telegram-bot`.
+2. **User Authentication (`@authorized_only`)**:
+   - Strict identity boundary verifying `update.effective_user.id` against `TELEGRAM_AUTHORIZED_USER_ID`.
+   - Immediate rejection with security warning for unauthorized access attempts.
+3. **Core Handlers & Navigation**:
+   - `/start`: Personalized welcome screen with quick-action reply keyboard.
+   - `/help`: Guide to agent commands and natural language triggers.
+   - `/status`: Operational dashboard reporting active LLM, SQLite health, registered skills, and available tools.
+   - Natural language text handler: dispatches incoming requests to `Orchestrator`, activates corresponding skill, and delivers formatted status updates.
+4. **Application Entrypoint (`main.py`)**:
+   - Multi-mode launcher: starts Telegram bot via long polling when `TELEGRAM_BOT_TOKEN` is configured, or provides an interactive diagnostic CLI loop with `--cli`.
+5. **Testing & Verification**:
+   - 9 new unit tests in `tests/test_telegram.py` verifying authentication, commands, keyboard layouts, and message dispatch.
+   - Full test suite: 43 passing tests with 85% total coverage.
