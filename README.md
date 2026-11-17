@@ -2,7 +2,7 @@
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
-[![Tests: 97 Passing](https://img.shields.io/badge/tests-97%20passing-brightgreen.svg)]()
+[![Tests: 106 Passing](https://img.shields.io/badge/tests-106%20passing-brightgreen.svg)]()
 [![Coverage: 88%](https://img.shields.io/badge/coverage-88%25-brightgreen.svg)]()
 [![Code Style: Monochrome](https://img.shields.io/badge/design-monochrome-lightgrey.svg)]()
 
@@ -148,9 +148,14 @@ cp .env.example .env
 ```
 
 ```ini
-# Gemini LLM API
-GEMINI_API_KEY="your-gemini-api-key"
-GEMINI_MODEL="gemini-2.5-flash"
+# OpenRouter API (Primary LLM)
+OPENROUTER_API_KEY="your-openrouter-api-key"
+OPENROUTER_MODEL="baidu/ernie-5.5-flash-preview"
+OPENROUTER_API_URL="https://openrouter.ai/api/v1/chat/completions"
+
+# Alternative LLM Providers (Optional fallbacks)
+# HF_TOKEN="your-hugging-face-token"
+# GEMINI_API_KEY="your-gemini-api-key"
 
 # Telegram Bot
 TELEGRAM_BOT_TOKEN="your-bot-token"

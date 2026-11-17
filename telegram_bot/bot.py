@@ -22,7 +22,7 @@ class CaspianTelegramBot:
         token: Optional[str] = None,
         handlers: Optional[TelegramHandlers] = None,
     ):
-        self.token = token or settings.telegram_bot_token
+        self.token = settings.telegram_bot_token if token is None else token
         self.handlers = handlers or default_handlers
         self.application: Optional[Application] = None
 

@@ -115,7 +115,8 @@ def test_message_handler_unknown_intent(mock_telegram_update, custom_handlers):
         assert "not sure how to handle" in call_arg
 
 
-def test_bot_application_builder_missing_token():
+def test_bot_application_builder_missing_token(monkeypatch):
+    monkeypatch.setattr(settings, "telegram_bot_token", None)
     bot = CaspianTelegramBot(token=None)
     with pytest.raises(ValueError) as exc:
         bot.build_application()

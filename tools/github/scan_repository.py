@@ -35,8 +35,17 @@ class ScanRepositoryOutput(BaseModel):
 
 def _validate_repo_path(repo_path: Optional[str]) -> Path:
     """Validate that repository path exists and is an authorised git repository."""
-    target_path = Path(repo_path) if repo_path else (settings.caspian_repo_path or settings.base_dir)
-    target_path = target_path.resolve()
+    candidate = None
+    if repo_path and not str(repo_path).startswith(("http://", "https://", "git@")):
+        candidate = Path(repo_path)
+    elif settings.caspian_repo_path:
+        str_path = str(settings.caspian_repo_path)
+        if not str_path.startswith(("http://", "https://", "git@")):
+            p = Path(str_path)
+            if p.exists():
+                candidate = p
+
+    target_path = (candidate or settings.base_dir).resolve()
 
     if not target_path.exists():
         raise ValueError(f"Repository path does not exist: {target_path}")

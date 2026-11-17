@@ -5,8 +5,9 @@ from pathlib import Path
 from agent.config import Settings
 
 
-def test_settings_defaults():
-    s = Settings(gemini_api_key=None, telegram_bot_token=None)
+def test_settings_defaults(monkeypatch):
+    monkeypatch.delenv("DATABASE_PATH", raising=False)
+    s = Settings(base_dir=Path("/nonexistent"), gemini_api_key=None, telegram_bot_token=None, database_path="caspian_agent.db")
     assert s.gemini_model == "gemini-2.5-flash"
     assert s.database_path == "caspian_agent.db"
     assert s.max_tool_calls_per_request == 10
@@ -24,6 +25,7 @@ def test_settings_redaction_in_repr():
     assert "***" in rep
 
 
-def test_get_db_path(tmp_path):
+def test_get_db_path(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_PATH", raising=False)
     s = Settings(base_dir=tmp_path, database_path="test.db")
     assert s.get_db_path() == tmp_path / "test.db"

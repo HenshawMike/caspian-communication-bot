@@ -31,7 +31,17 @@ class Settings:
 
     base_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent.parent)
     
-    # Gemini API
+    # OpenRouter API (Primary LLM)
+    openrouter_api_key: Optional[str] = None
+    openrouter_model: str = "baidu/ernie-5.5-flash-preview"
+    openrouter_api_url: str = "https://openrouter.ai/api/v1/chat/completions"
+
+    # Hugging Face Router API (Alternative)
+    hf_token: Optional[str] = None
+    hf_model: str = "Qwen/Qwen3-4B:featherless-ai"
+    hf_api_url: str = "https://router.huggingface.co/v1/chat/completions"
+
+    # Gemini API (Secondary / Fallback)
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-2.5-flash"
     
@@ -63,6 +73,14 @@ class Settings:
         _load_env_file(env_path)
 
         # Populate from environment
+        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", self.openrouter_api_key)
+        self.openrouter_model = os.getenv("OPENROUTER_MODEL", self.openrouter_model)
+        self.openrouter_api_url = os.getenv("OPENROUTER_API_URL", self.openrouter_api_url)
+
+        self.hf_token = os.getenv("HF_TOKEN", self.hf_token)
+        self.hf_model = os.getenv("HF_MODEL", self.hf_model)
+        self.hf_api_url = os.getenv("HF_API_URL", self.hf_api_url)
+
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", self.gemini_api_key)
         self.gemini_model = os.getenv("GEMINI_MODEL", self.gemini_model)
         self.telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN", self.telegram_bot_token)
@@ -75,10 +93,11 @@ class Settings:
         self.x_dry_run_mode = os.getenv("X_DRY_RUN_MODE", "true").lower() in ("true", "1", "yes")
 
         repo_env = os.getenv("CASPIAN_REPO_PATH")
-        if repo_env:
+        if repo_env and not repo_env.startswith(("http://", "https://", "git@")):
             self.caspian_repo_path = Path(repo_env)
             
-        self.database_path = os.getenv("DATABASE_PATH", self.database_path)
+        if "DATABASE_PATH" in os.environ and self.database_path == "caspian_agent.db":
+            self.database_path = os.environ["DATABASE_PATH"]
         self.log_level = os.getenv("LOG_LEVEL", self.log_level).upper()
         
         try:
@@ -102,10 +121,16 @@ class Settings:
 
     def __repr__(self) -> str:
         """Safe representation masking sensitive credentials."""
+        masked_openrouter = "***" if self.openrouter_api_key else "None"
+        masked_hf = "***" if self.hf_token else "None"
         masked_gemini = "***" if self.gemini_api_key else "None"
         masked_telegram = "***" if self.telegram_bot_token else "None"
         return (
             f"Settings(base_dir={self.base_dir}, "
+            f"openrouter_model='{self.openrouter_model}', "
+            f"openrouter_api_key={masked_openrouter}, "
+            f"hf_model='{self.hf_model}', "
+            f"hf_token={masked_hf}, "
             f"gemini_model='{self.gemini_model}', "
             f"gemini_api_key={masked_gemini}, "
             f"telegram_bot_token={masked_telegram}, "

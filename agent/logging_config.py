@@ -10,6 +10,8 @@ from typing import Any, Dict
 # Patterns to redact
 SECRET_PATTERNS = [
     (re.compile(r"AIza[0-9A-Za-z-_]{35}"), "***REDACTED_GOOGLE_KEY***"),
+    (re.compile(r"sk-or-[0-9A-Za-z_\-]{30,}"), "***REDACTED_OPENROUTER_KEY***"),
+    (re.compile(r"hf_[0-9A-Za-z]{30,}"), "***REDACTED_HF_TOKEN***"),
     (re.compile(r"\d{8,10}:[a-zA-Z0-9_-]{35}"), "***REDACTED_TELEGRAM_TOKEN***"),
     (re.compile(r"(Bearer\s+)[a-zA-Z0-9_\-\.]{20,}", re.IGNORECASE), r"\1***REDACTED***"),
     (re.compile(r"""(["']?[a-zA-Z0-9_]*(?:key|token|secret|password)["']?\s*[:=]\s*["'])([^"',\s]{6,})(["'])""", re.IGNORECASE), r"\1***REDACTED***\3"),

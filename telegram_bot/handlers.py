@@ -97,9 +97,20 @@ class TelegramHandlers:
         skills = skill_loader.get_all_skills_metadata()
         tools = default_registry.get_tool_names()
 
+        if settings.openrouter_api_key:
+            provider = "OpenRouter"
+            active_model = settings.openrouter_model
+        elif settings.hf_token:
+            provider = "Hugging Face Router"
+            active_model = settings.hf_model
+        else:
+            provider = "Gemini"
+            active_model = settings.gemini_model
+
         status_text = (
             "⚙️ **System Operational Status**\n\n"
-            f"• **LLM Model:** `{settings.gemini_model}`\n"
+            f"• **LLM Provider:** {provider}\n"
+            f"• **LLM Model:** `{active_model}`\n"
             f"• **Database:** SQLite (WAL mode)\n"
             f"• **Registered Skills ({len(skills)}):**\n"
             + "\n".join([f"  - `{s.name}`" for s in skills])
