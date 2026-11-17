@@ -1,0 +1,68 @@
+{
+  "skills": [
+    {
+      "id": "caspian_research",
+      "name": "Caspian Research",
+      "path": "skills/caspian-research/SKILL.md",
+      "description": "Monitors and analyses Project Caspian's Git repository and identifies research developments suitable for public communication.",
+      "triggers": [
+        "check caspian",
+        "scan repository",
+        "latest caspian research",
+        "caspian updates",
+        "research post ideas"
+      ],
+      "required_permissions": [
+        "repository_read",
+        "knowledge_read"
+      ]
+    },
+    {
+      "id": "ai_intelligence",
+      "name": "AI Intelligence",
+      "path": "skills/ai-intelligence/SKILL.md",
+      "description": "Collects external AI research, announcements and public discussions and stores structured knowledge.",
+      "triggers": [
+        "find ai research",
+        "latest ai developments",
+        "research papers",
+        "ai announcements"
+      ],
+      "required_permissions": [
+        "external_read",
+        "knowledge_write"
+      ]
+    },
+    {
+      "id": "daily_briefing",
+      "name": "Daily Briefing",
+      "path": "skills/daily-briefing/SKILL.md",
+      "description": "Creates and delivers a daily briefing of important AI developments in understandable language.",
+      "triggers": [
+        "daily ai updates",
+        "ai briefing",
+        "what happened in ai today"
+      ],
+      "required_permissions": [
+        "external_read",
+        "knowledge_read"
+      ]
+    },
+    {
+      "id": "content_publishing",
+      "name": "Content Publishing",
+      "path": "skills/content-publishing/SKILL.md",
+      "description": "Generates, verifies, schedules and publishes approved AI and Caspian content to X.",
+      "triggers": [
+        "write a post",
+        "generate a thread",
+        "schedule posts",
+        "publish content"
+      ],
+      "required_permissions": [
+        "content_generate",
+        "content_publish"
+      ]
+    }
+  ]
+}
