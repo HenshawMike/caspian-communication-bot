@@ -67,6 +67,18 @@ CREATE TABLE IF NOT EXISTS external_ai_knowledge (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS daily_briefings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    briefing_date TEXT NOT NULL,
+    developments_json TEXT NOT NULL,
+    key_takeaways_json TEXT,
+    caspian_relevance_json TEXT,
+    sources_json TEXT,
+    formatted_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_briefing_date ON daily_briefings(briefing_date);
 CREATE INDEX IF NOT EXISTS idx_external_url ON external_ai_knowledge(source_url);
 CREATE INDEX IF NOT EXISTS idx_external_topic ON external_ai_knowledge(topic);
 CREATE INDEX IF NOT EXISTS idx_external_type ON external_ai_knowledge(research_type);
@@ -301,3 +313,52 @@ def is_source_url_stored(url: str, manager: Optional[DatabaseManager] = None) ->
     with mgr.connection() as conn:
         cur = conn.execute(query, (url.strip(),))
         return cur.fetchone() is not None
+
+
+def save_daily_briefing(
+    briefing_date: str,
+    developments: List[Dict[str, Any]],
+    key_takeaways: List[str],
+    caspian_relevance: List[Dict[str, Any]],
+    sources: List[str],
+    formatted_text: str,
+    manager: Optional[DatabaseManager] = None,
+) -> int:
+    """Save generated daily briefing to database."""
+    mgr = manager or db_manager
+    query = """
+    INSERT INTO daily_briefings (
+        briefing_date, developments_json, key_takeaways_json,
+        caspian_relevance_json, sources_json, formatted_text
+    ) VALUES (?, ?, ?, ?, ?, ?);
+    """
+    with mgr.connection() as conn:
+        cur = conn.execute(
+            query,
+            (
+                briefing_date,
+                json.dumps(developments),
+                json.dumps(key_takeaways),
+                json.dumps(caspian_relevance),
+                json.dumps(sources),
+                formatted_text,
+            ),
+        )
+        return cur.lastrowid
+
+
+def get_latest_daily_briefing(manager: Optional[DatabaseManager] = None) -> Optional[Dict[str, Any]]:
+    """Retrieve the most recent daily briefing."""
+    mgr = manager or db_manager
+    query = "SELECT * FROM daily_briefings ORDER BY id DESC LIMIT 1;"
+    with mgr.connection() as conn:
+        cur = conn.execute(query)
+        row = cur.fetchone()
+        if not row:
+            return None
+        res = dict(row)
+        res["developments"] = json.loads(res["developments_json"])
+        res["key_takeaways"] = json.loads(res["key_takeaways_json"]) if res["key_takeaways_json"] else []
+        res["caspian_relevance"] = json.loads(res["caspian_relevance_json"]) if res["caspian_relevance_json"] else []
+        res["sources"] = json.loads(res["sources_json"]) if res["sources_json"] else []
+        return res

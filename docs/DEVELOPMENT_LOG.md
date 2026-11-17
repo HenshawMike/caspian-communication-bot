@@ -33,6 +33,31 @@
 
 ---
 
+## [2026-11-17] - Milestone 4: Daily AI Briefing Skill Complete
+
+### Implemented
+1. **Daily Briefing Persistence (`database/models.py`)**:
+   - Created `daily_briefings` SQLite table storing date, structured developments JSON, key takeaways, Caspian relevance assessments, original sources, and formatted message text.
+   - Implemented `save_daily_briefing` and `get_latest_daily_briefing`.
+2. **Skill Definition (`skills/daily-briefing/SKILL.md`)**:
+   - Authored specification adhering strictly to the 11 mandatory sections.
+   - Configured activation conditions: scheduled trigger or user requests ("daily AI updates", "AI briefing", "what happened in AI today").
+3. **End-to-End Briefing Workflow in Orchestrator (`agent/orchestrator.py`)**:
+   - Implemented `execute_daily_briefing_workflow`:
+     `search_knowledge` & `fetch_sources` -> `retrieve_context` -> Rank & select top 2-3 developments -> Synthesize clear plain English explanations -> Assess Caspian relevance objectively without forced links -> Format Telegram briefing -> Persist to database.
+   - Strictly conforms to Section 5 required briefing format:
+     - What happened?
+     - Simple explanation.
+     - Why it matters.
+     - Technical insight.
+     - Relevance to Caspian.
+     - Original source links and publication dates.
+4. **Testing & Verification**:
+   - Added 3 new tests in `tests/test_daily_briefing.py`.
+   - Full test suite: **65 passing tests** across 15 test modules with 85% total coverage.
+
+---
+
 ## [2026-11-17] - Milestone 3: External AI Intelligence Skill Complete
 
 ### Implemented

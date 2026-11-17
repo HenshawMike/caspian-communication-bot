@@ -9,6 +9,8 @@ from database.models import (
     save_external_knowledge,
     search_external_knowledge,
     is_source_url_stored,
+    save_daily_briefing,
+    get_latest_daily_briefing,
 )
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     "save_external_knowledge",
     "search_external_knowledge",
     "is_source_url_stored",
+    "save_daily_briefing",
+    "get_latest_daily_briefing",
 ]
