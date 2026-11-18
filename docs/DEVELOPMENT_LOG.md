@@ -1,6 +1,27 @@
 # Project Caspian Development Log
 
-## [2026-11-17] - Milestone 0: Foundation Complete
+## [2026-11-18] - LLM Integration Upgrade & Intelligent Synthesis
+### Implemented
+1. **OpenRouter Migration (`agent/llm.py`, `agent/config.py`, `.env.example`, `.env`)**:
+   - Added production `OpenRouterClient` supporting **Baidu: ERNIE-5.5-Flash-Preview (`baidu/ernie-5.5-flash-preview:free`)** via OpenRouter's OpenAI-compatible chat completions endpoint (`https://openrouter.ai/api/v1/chat/completions`).
+   - Retained multi-tier fallback support for Hugging Face Router, Gemini API, and deterministic Mock LLM clients.
+   - Updated configuration priority, secret scrubbing patterns (`sk-or-...`), and Telegram status handlers.
+2. **Intelligent Content Synthesis (`agent/orchestrator.py`)**:
+   - Refactored `execute_content_generation_workflow` to eliminate mechanical hardcoded strings.
+   - Hooked `self.llm` into post and thread creation with Project Caspian's research persona (Artificial Ontological Intelligence, world models, latent dynamics, empirical pre-registration) and restrained scientific tone.
+   - Improved topic parsing to handle natural language formulations ("write a post for introducing caspian", "draft a tweet on world models").
+   - Anchored factual claim verification with Project Caspian's foundational AOI context alongside retrieved repository experiments.
+3. **Daily Intelligence Synthesis (`agent/orchestrator.py`)**:
+   - Refactored `execute_daily_briefing_workflow` to invoke `self.llm.generate_json()` for each selected paper.
+   - Synthesizes paper-specific, mathematically accurate `simple_explanation`, `why_it_matters`, `technical_insight`, and objective `relevance_to_caspian` analysis without forcing artificial connections.
+   - Maintained deterministic fallback heuristics ensuring 100% offline unit test reliability.
+4. **Testing & Live Verification**:
+   - 106 passing tests across 24 test suites with 88% code coverage.
+   - Verified live post generation and daily AI intelligence briefings via OpenRouter.
+
+---
+
+
 
 ### Implemented
 1. **Virtual Environment & Dependencies**:

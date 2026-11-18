@@ -33,7 +33,7 @@ class Settings:
     
     # OpenRouter API (Primary LLM)
     openrouter_api_key: Optional[str] = None
-    openrouter_model: str = "baidu/ernie-5.5-flash-preview"
+    openrouter_model: str = "baidu/ernie-5.5-flash-preview:free"
     openrouter_api_url: str = "https://openrouter.ai/api/v1/chat/completions"
 
     # Hugging Face Router API (Alternative)

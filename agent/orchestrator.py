@@ -593,25 +593,63 @@ class Orchestrator:
             title = item.get("title", f"Development {idx}")
             url = item.get("source_url", "")
             summary = item.get("summary", "")
-            contrib = item.get("central_contribution") or summary[:200]
+            contrib = item.get("central_contribution") or (summary[:200] if summary else "Methodological contribution.")
             sources.append(url)
 
-            # Evaluate Caspian relevance objectively without forcing
+            # Evaluate Caspian relevance objectively via keywords as heuristic baseline
             item_text = (title + " " + summary).lower()
             overlap = [k for k in caspian_keywords if k in item_text]
             if overlap:
-                caspian_note = f"Relevant to Caspian research in {', '.join(overlap[:2])} (methods share similar architectural principles)."
+                default_caspian_note = f"Relevant to Caspian research in {', '.join(overlap[:2])} (methods share similar architectural principles)."
                 has_rel = True
             else:
-                caspian_note = "No direct overlap with current Caspian experiments."
+                default_caspian_note = "No direct overlap with current Caspian experiments."
                 has_rel = False
+
+            simple_exp = f"Researchers investigated {item.get('topic', 'AI methods')} to evaluate efficiency and reasoning stability."
+            why_matters = "Enables faster training convergence and more reliable autonomous problem-solving."
+            tech_insight = summary[:250] if summary else "Demonstrates empirical gains on standard benchmark suites."
+            caspian_note = default_caspian_note
+
+            # Invoke LLM for intelligent paper synthesis if available
+            if hasattr(self, "llm") and self.llm:
+                try:
+                    sys_inst = (
+                        "You are the Chief Scientist and AI Research Analyst for Project Caspian. "
+                        "Analyze frontier AI research papers and produce concise, scientifically grounded briefings. "
+                        "Project Caspian investigates Artificial Ontological Intelligence (AOI), world models, latent dynamics, and autonomous agents. "
+                        "Rules:\n"
+                        "- simple_explanation: 1-2 plain sentences explaining what the researchers did without jargon.\n"
+                        "- why_it_matters: 1 clear sentence on scientific or real-world impact.\n"
+                        "- technical_insight: 1-2 sentences highlighting the algorithmic, mathematical, or architectural mechanism.\n"
+                        "- relevance_to_caspian: Objective assessment of connection to Caspian world models/agents, or explicitly state 'No direct overlap with current Caspian experiments.' Never force connections."
+                    )
+                    prompt = (
+                        f"Analyze this paper for the daily intelligence briefing:\n"
+                        f"Title: {title}\n"
+                        f"Summary: {summary}\n"
+                        f"Contribution: {contrib}\n\n"
+                        f"Return ONLY valid JSON with keys: simple_explanation, why_it_matters, technical_insight, relevance_to_caspian"
+                    )
+                    analysis = self.llm.generate_json(prompt, system_instruction=sys_inst)
+                    if isinstance(analysis, dict) and analysis.get("simple_explanation"):
+                        simple_exp = str(analysis["simple_explanation"]).strip()
+                        if analysis.get("why_it_matters"):
+                            why_matters = str(analysis["why_it_matters"]).strip()
+                        if analysis.get("technical_insight"):
+                            tech_insight = str(analysis["technical_insight"]).strip()
+                        if analysis.get("relevance_to_caspian"):
+                            caspian_note = str(analysis["relevance_to_caspian"]).strip()
+                            has_rel = "no direct overlap" not in caspian_note.lower()
+                except Exception as llm_err:
+                    logger.warning(f"LLM synthesis failed for development {idx}: {llm_err}")
 
             dev_entry = {
                 "title": title,
                 "what_happened": contrib,
-                "simple_explanation": f"Researchers investigated {item.get('topic', 'AI')} to improve reasoning efficiency and system stability.",
-                "why_it_matters": "Enables faster training convergence and more reliable autonomous problem-solving.",
-                "technical_insight": summary[:250] if summary else "Demonstrates empirical gains on standard benchmark suites.",
+                "simple_explanation": simple_exp,
+                "why_it_matters": why_matters,
+                "technical_insight": tech_insight,
                 "relevance_to_caspian": caspian_note,
                 "source_url": url,
                 "publication_date": item.get("publication_date", date_str),
@@ -799,10 +837,25 @@ class Orchestrator:
         content_type = "thread" if is_thread else "single_post"
 
         # Extract topic from message
-        topic = clean_msg
-        for stop_phrase in ("write a post about", "write a post on", "write a thread on", "generate a thread about", "draft a tweet on", "write a post", "generate a thread"):
-            topic = re.sub(re.escape(stop_phrase), "", topic, flags=re.IGNORECASE).strip()
-        topic = topic if len(topic) >= 3 else "AI Research Breakthroughs"
+        clean_topic = clean_msg
+        stop_phrases = [
+            "write a post about", "write a post on", "write a post for", "write a post introducing", "write a post",
+            "write a thread about", "write a thread on", "write a thread for", "write a thread",
+            "generate a thread about", "generate a thread on", "generate a thread for", "generate a thread",
+            "generate a post about", "generate a post on", "generate a post for", "generate a post",
+            "draft a tweet about", "draft a tweet on", "draft a tweet for", "draft a tweet",
+            "draft a post about", "draft a post on", "draft a post for", "draft a post",
+            "introduce", "introducing", "create a post about", "create a post on", "create a post",
+        ]
+        for sp in sorted(stop_phrases, key=len, reverse=True):
+            clean_topic = re.sub(re.escape(sp), "", clean_topic, flags=re.IGNORECASE).strip()
+
+        clean_topic = re.sub(r"^(for|about|on|regarding|to)\s+", "", clean_topic, flags=re.IGNORECASE).strip()
+
+        if "caspian" in clean_msg.lower() and ("intro" in clean_msg.lower() or len(clean_topic) <= 8 or clean_topic.lower() in ["caspian", "project caspian"]):
+            topic = "Introduction to Project Caspian"
+        else:
+            topic = clean_topic if len(clean_topic) >= 3 else "AI Research Breakthroughs"
 
         # 3. Retrieve relevant knowledge context
         search_envelope = self.executor.execute(
@@ -813,7 +866,24 @@ class Orchestrator:
         sources_found = search_envelope.data.get("results", []) if search_envelope.success else []
         source_texts = [s.get("summary") or s.get("central_contribution") or "" for s in sources_found]
         source_urls = [s.get("source_url") for s in sources_found if s.get("source_url")]
-        combined_ground_truth = " ".join(source_texts) or f"Project Caspian empirical research benchmark evaluation in {topic}."
+
+        ctx_envelope = self.executor.execute(
+            "retrieve_context",
+            {"query": topic, "limit": 3},
+            context=context,
+        )
+        caspian_items = ctx_envelope.data.get("items", []) if ctx_envelope.success else []
+        caspian_texts = [f"{ci.get('title', '')}: {ci.get('findings', '')} {ci.get('limitations', '')}" for ci in caspian_items]
+
+        caspian_ground_truth_base = (
+            "Project Caspian is an experimental scientific research programme investigating Artificial Ontological Intelligence (AOI). "
+            "The core research explores whether an artificial agent can construct its own internal representations of an environment "
+            "through perception, memory, prediction, action, and consequences, without human semantic categories or labels. "
+            "Implemented with from-scratch NumPy neural substrates, deterministic simulated worlds, latent dynamics, world models, "
+            "and empirical benchmark evaluation."
+        )
+
+        combined_ground_truth = " ".join([t for t in source_texts + caspian_texts + [caspian_ground_truth_base] if t]).strip()
 
         # 4. Generate post or thread
         if is_thread:
@@ -822,6 +892,29 @@ class Orchestrator:
                 f"Our benchmark findings indicate state compression yields up to 50% memory reduction during long rollouts.",
                 f"Full technical breakdown and replication code will follow in upcoming milestone releases.",
             ]
+            if hasattr(self, "llm") and self.llm:
+                try:
+                    sys_inst = (
+                        "You are the Chief Scientist and Communications Officer for Project Caspian. "
+                        "Project Caspian investigates Artificial Ontological Intelligence (AOI): whether an artificial agent "
+                        "can build its own internal representations of the world from scratch through perception, memory, "
+                        "prediction, and consequences, without human semantic priors. "
+                        "Tone: Rigorous, scientifically grounded, restrained, intellectual, clear. No marketing hype. "
+                        "Strict rule: Never invent random unverified percentages or metrics not in the reference text."
+                    )
+                    prompt = (
+                        f"Task: Generate a multi-post thread (3-4 concise points) about: {topic}\n"
+                        f"User request: {clean_msg}\n"
+                        f"Ground Truth Reference Context: {combined_ground_truth[:1000]}\n\n"
+                        f"Return ONLY valid JSON in format:\n"
+                        f'{{"topic": "{topic}", "key_points": ["Point 1 (max 200 chars)", "Point 2 (max 200 chars)", "Point 3 (max 200 chars)"]}}'
+                    )
+                    llm_data = self.llm.generate_json(prompt, system_instruction=sys_inst)
+                    if isinstance(llm_data, dict) and isinstance(llm_data.get("key_points"), list) and len(llm_data["key_points"]) >= 2:
+                        thread_points = [str(p).strip() for p in llm_data["key_points"] if str(p).strip()]
+                except Exception as e:
+                    logger.warning(f"LLM thread generation failed: {e}")
+
             thread_envelope = self.executor.execute(
                 "generate_thread",
                 {
@@ -835,12 +928,41 @@ class Orchestrator:
             content_str = "\n\n".join([p["text"] for p in posts])
             claims_to_check = [p["text"] for p in posts]
         else:
+            findings_text = f"Empirical evaluation shows consistent gains in {topic}."
+            limitations_text = "Tested across benchmark simulated environments."
+            if hasattr(self, "llm") and self.llm:
+                try:
+                    sys_inst = (
+                        "You are the Chief Scientist and Communications Officer for Project Caspian. "
+                        "Project Caspian investigates Artificial Ontological Intelligence (AOI): whether an artificial agent "
+                        "can build its own internal representations of the world from scratch through perception, memory, "
+                        "prediction, and consequences, without human semantic priors. "
+                        "Tone: Rigorous, scientifically grounded, restrained, intellectual, clear. No marketing hype. "
+                        "Keep findings concise (under 140 chars) and limitations concise (under 60 chars) so the entire post fits on X."
+                    )
+                    prompt = (
+                        f"Task: Generate a draft post for: {topic}\n"
+                        f"User request: {clean_msg}\n"
+                        f"Ground Truth Reference Context: {combined_ground_truth[:1000]}\n\n"
+                        f"Return ONLY valid JSON in format:\n"
+                        f'{{"topic": "{topic}", "findings": "1-2 concise sentences (max 140 chars)", "limitations": "Brief caveat or scope (max 60 chars)"}}'
+                    )
+                    llm_data = self.llm.generate_json(prompt, system_instruction=sys_inst)
+                    if isinstance(llm_data, dict) and llm_data.get("findings"):
+                        findings_text = str(llm_data["findings"]).strip()
+                        if llm_data.get("limitations"):
+                            limitations_text = str(llm_data["limitations"]).strip()
+                        if llm_data.get("topic") and len(str(llm_data["topic"]).strip()) >= 3:
+                            topic = str(llm_data["topic"]).strip()
+                except Exception as e:
+                    logger.warning(f"LLM post generation failed: {e}")
+
             post_envelope = self.executor.execute(
                 "generate_post",
                 {
                     "topic": topic,
-                    "findings": f"Empirical evaluation shows consistent gains in {topic}.",
-                    "limitations": "Tested across benchmark simulated environments.",
+                    "findings": findings_text,
+                    "limitations": limitations_text,
                     "source_reference": source_urls[0] if source_urls else "Project Caspian",
                 },
                 context=context,
